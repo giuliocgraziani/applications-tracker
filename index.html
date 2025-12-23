@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Internship Tracker - TrackTern</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'DM Sans', sans-serif;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .deadline-near {
+            animation: pulse-red 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { color: #EF4444; }
+            50% { color: #DC2626; }
+        }
+
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-pill {
+            transition: all 0.2s ease;
+        }
+
+        .status-pill:hover {
+            transform: scale(1.05);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 56px;
+            height: 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 34px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.off {
+            background: #cbd5e1;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch:not(.off) .toggle-slider {
+            transform: translateX(28px);
+        }
+
+        .filter-badge {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+        
+        // Lucide React Icons as inline SVG components
+        const Plus = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M5 12h14"/><path d="M12 5v14"/>
+            </svg>
+        );
+
+        const Calendar = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>
+            </svg>
+        );
+
+        const List = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/>
+            </svg>
+        );
+
+        const ChevronRight = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="m9 18 6-6-6-6"/>
+            </svg>
+        );
+
+        const ChevronLeft = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="m15 18-6-6 6-6"/>
+            </svg>
+        );
+
+        const Search = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+        );
+
+        const X = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+        );
+
+        const Edit2 = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>
+            </svg>
+        );
+
+        const Trash2 = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>
+            </svg>
+        );
+
+        const Save = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+            </svg>
+        );
+
+        const MapPin = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+        );
+
+        const Clock = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+        );
+
+        const FileText = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>
+            </svg>
+        );
+
+        const Briefcase = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>
+            </svg>
+        );
+
+        const Tag = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>
+            </svg>
+        );
+
+        const AlertCircle = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>
+            </svg>
+        );
+
+        const ExternalLink = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            </svg>
+        );
+
+        const Filter = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+        );
+
+        const DollarSign = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+        );
+
+        const GraduationCap = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+        );
+
+        const Download = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+            </svg>
+        );
+
+        const Upload = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>
+            </svg>
+        );
+
+        const FileSpreadsheet = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>
+            </svg>
+        );
+
+        const Eye = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+        );
+
+        const Table2 = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+            </svg>
+        );
+
+        function EnhancedInternshipTracker() {
+          const [applications, setApplications] = useState([]);
+
+          const [view, setView] = useState('list'); // 'list', 'calendar', or 'compact'
+          const [isModalOpen, setIsModalOpen] = useState(false);
+          const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+          const [viewingApp, setViewingApp] = useState(null);
+          const [editingApp, setEditingApp] = useState(null);
+          const [searchQuery, setSearchQuery] = useState('');
+          const [showStatusBreakdown, setShowStatusBreakdown] = useState(false);
+          const [selectedMonth, setSelectedMonth] = useState(new Date());
+          const [showFilters, setShowFilters] = useState(false);
+
+          const [filters, setFilters] = useState({
+            status: [],
+            cycle: [],
+            category: [],
+            stipend: null // null, true, or false
+          });
+
+          const [formData, setFormData] = useState({
+            company: '',
+            role: '',
+            status: 'upcoming',
+            cycle: '',
+            appliedOn: '',
+            deadline: '',
+            duration: '',
+            location: '',
+            category: '',
+            notes: '',
+            materials: {
+              cv: false,
+              coverLetter: false,
+              other: ''
+            },
+            link: '',
+            stipend: false,
+            stipendAmount: '',
+            educationRequirement: '',
+            additionalDeadlines: []
+          });
+
+          const [newDeadline, setNewDeadline] = useState({ name: '', date: '' });
+          const [customCategory, setCustomCategory] = useState('');
+          const [availableCategories, setAvailableCategories] = useState([
+            'International Organisation',
+            'Generic Public Sector',
+            'Central Bank',
+            'Research Centre',
+            'Development Bank',
+            'Economic Consultancy',
+            'University Faculty',
+            'Lobby',
+            'Miscellaneous Firm'
+          ]);
+
+          const statusOptions = [
+            { value: 'upcoming', label: 'Upcoming', color: '#E879F9' },
+            { value: 'applied', label: 'Applied', color: '#94A3B8' },
+            { value: 'invited', label: 'Invited for Interview', color: '#5EEAD4' },
+            { value: 'interview_step2', label: 'Step 2', color: '#FBBF24' },
+            { value: 'interview_final', label: 'Final Step', color: '#60A5FA' },
+            { value: 'offered', label: 'Offered', color: '#34D399' },
+            { value: 'accepted', label: 'Accepted', color: '#10B981' },
+            { value: 'rejected', label: 'Rejected', color: '#F87171' },
+            { value: 'withdrawn', label: 'Withdrawn', color: '#FB7185' }
+          ];
+
+          const cycleOptions = [
+            { value: 'spring', label: 'Spring (Jan–Apr)', color: '#FCA5A5' },
+            { value: 'summer', label: 'Summer (May–Aug)', color: '#FCD34D' },
+            { value: 'fall', label: 'Fall (Sept–Dec)', color: '#FCA5A5' },
+            { value: 'winter', label: 'Winter (Dec–Jan)', color: '#93C5FD' }
+          ];
+
+          const isDeadlineNear = (deadline) => {
+            if (!deadline) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const deadlineDate = new Date(deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            const daysUntil = Math.floor((deadlineDate - today) / (1000 * 60 * 60 * 24));
+            return daysUntil >= 0 && daysUntil <= 2;
+          };
+
+          // Filter applications
+          const filteredApplications = useMemo(() => {
+            return applications.filter(app => {
+              // Search filter
+              const matchesSearch = app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                app.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (app.category && app.category.toLowerCase().includes(searchQuery.toLowerCase()));
+              
+              if (!matchesSearch) return false;
+
+              // Status filter
+              if (filters.status.length > 0 && !filters.status.includes(app.status)) {
+                return false;
+              }
+
+              // Cycle filter
+              if (filters.cycle.length > 0 && !filters.cycle.includes(app.cycle)) {
+                return false;
+              }
+
+              // Category filter
+              if (filters.category.length > 0 && !filters.category.includes(app.category)) {
+                return false;
+              }
+
+              // Stipend filter
+              if (filters.stipend !== null && app.stipend !== filters.stipend) {
+                return false;
+              }
+
+              return true;
+            });
+          }, [applications, searchQuery, filters]);
+
+          const statusBreakdown = useMemo(() => {
+            const breakdown = {};
+            applications.forEach(app => {
+              breakdown[app.status] = (breakdown[app.status] || 0) + 1;
+            });
+            return breakdown;
+          }, [applications]);
+
+          const openModal = (app = null) => {
+            if (app) {
+              setEditingApp(app);
+              setFormData(app);
+            } else {
+              setEditingApp(null);
+              setFormData({
+                company: '',
+                role: '',
+                status: 'upcoming',
+                cycle: '',
+                appliedOn: '',
+                deadline: '',
+                duration: '',
+                location: '',
+                category: '',
+                notes: '',
+                materials: {
+                  cv: false,
+                  coverLetter: false,
+                  other: ''
+                },
+                link: '',
+                stipend: false,
+                stipendAmount: '',
+                educationRequirement: '',
+                additionalDeadlines: []
+              });
+            }
+            setIsModalOpen(true);
+          };
+
+          const saveApplication = () => {
+            if (!formData.company || !formData.role) {
+              alert('Company and Role are required');
+              return;
+            }
+
+            if (editingApp) {
+              setApplications(apps => apps.map(app => 
+                app.id === editingApp.id ? { ...formData, id: app.id } : app
+              ));
+            } else {
+              setApplications(apps => [...apps, { ...formData, id: Date.now() }]);
+            }
+
+            setIsModalOpen(false);
+            setEditingApp(null);
+          };
+
+          const deleteApplication = (id) => {
+            if (confirm('Are you sure you want to delete this application?')) {
+              setApplications(apps => apps.filter(app => app.id !== id));
+            }
+          };
+
+          const addDeadline = () => {
+            if (newDeadline.name && newDeadline.date) {
+              setFormData({
+                ...formData,
+                additionalDeadlines: [
+                  ...formData.additionalDeadlines,
+                  { ...newDeadline, id: Date.now() }
+                ]
+              });
+              setNewDeadline({ name: '', date: '' });
+            }
+          };
+
+          const removeDeadline = (id) => {
+            setFormData({
+              ...formData,
+              additionalDeadlines: formData.additionalDeadlines.filter(d => d.id !== id)
+            });
+          };
+
+          const addCustomCategory = () => {
+            if (customCategory && !availableCategories.includes(customCategory)) {
+              setAvailableCategories([...availableCategories, customCategory]);
+              setFormData({ ...formData, category: customCategory });
+              setCustomCategory('');
+            }
+          };
+
+          const toggleFilter = (filterType, value) => {
+            setFilters(prev => {
+              if (filterType === 'stipend') {
+                return { ...prev, stipend: prev.stipend === value ? null : value };
+              }
+              
+              const currentFilters = prev[filterType];
+              const newFilters = currentFilters.includes(value)
+                ? currentFilters.filter(v => v !== value)
+                : [...currentFilters, value];
+              
+              return { ...prev, [filterType]: newFilters };
+            });
+          };
+
+          const clearFilters = () => {
+            setFilters({
+              status: [],
+              cycle: [],
+              category: [],
+              stipend: null
+            });
+          };
+
+          const hasActiveFilters = () => {
+            return filters.status.length > 0 || 
+                   filters.cycle.length > 0 || 
+                   filters.category.length > 0 || 
+                   filters.stipend !== null;
+          };
+
+          // Export to CSV
+          const exportToCSV = () => {
+            if (applications.length === 0) {
+              alert('No applications to export');
+              return;
+            }
+
+            const headers = [
+              'Company',
+              'Position',
+              'Status',
+              'Cycle',
+              'Applied On',
+              'Deadline',
+              'Duration',
+              'Location',
+              'Category',
+              'Link',
+              'Stipend',
+              'Stipend Amount',
+              'Education Requirement',
+              'CV Required',
+              'Cover Letter Required',
+              'Other Materials',
+              'Notes',
+              'Additional Deadlines'
+            ];
+
+            const rows = applications.map(app => [
+              app.company,
+              app.role,
+              statusOptions.find(s => s.value === app.status)?.label || app.status,
+              app.cycle || '',
+              app.appliedOn || '',
+              app.deadline || '',
+              app.duration || '',
+              app.location || '',
+              app.category || '',
+              app.link || '',
+              app.stipend ? 'Yes' : 'No',
+              app.stipendAmount || '',
+              app.educationRequirement || '',
+              app.materials.cv ? 'Yes' : 'No',
+              app.materials.coverLetter ? 'Yes' : 'No',
+              app.materials.other || '',
+              app.notes || '',
+              app.additionalDeadlines?.map(d => `${d.name}: ${d.date}`).join('; ') || ''
+            ]);
+
+            const csvContent = [
+              headers.join(','),
+              ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `internship-applications-${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
+          // Backup all data
+          const backupData = () => {
+            if (applications.length === 0) {
+              alert('No data to backup');
+              return;
+            }
+
+            const backup = {
+              version: '2.0',
+              exportDate: new Date().toISOString(),
+              applications: applications,
+              customCategories: availableCategories
+            };
+
+            const json = JSON.stringify(backup, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `tracktern-backup-${new Date().toISOString().split('T')[0]}.json`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
+          // Import data
+          const importData = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              try {
+                const backup = JSON.parse(e.target.result);
+                
+                if (!backup.applications || !Array.isArray(backup.applications)) {
+                  alert('Invalid backup file format');
+                  return;
+                }
+
+                if (confirm(`This will import ${backup.applications.length} application(s). Continue?`)) {
+                  setApplications(backup.applications);
+                  if (backup.customCategories) {
+                    setAvailableCategories(backup.customCategories);
+                  }
+                  alert('Data imported successfully!');
+                }
+              } catch (error) {
+                alert('Error reading backup file: ' + error.message);
+              }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset file input
+          };
+
+          const generateCalendar = () => {
+            const year = selectedMonth.getFullYear();
+            const month = selectedMonth.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay();
+
+            const calendar = [];
+            let day = 1;
+
+            for (let week = 0; week < 6; week++) {
+              const weekDays = [];
+              for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+                if ((week === 0 && dayOfWeek < startingDayOfWeek) || day > daysInMonth) {
+                  weekDays.push(null);
+                } else {
+                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const dayApps = applications.filter(app => 
+                    app.deadline === dateStr || app.appliedOn === dateStr ||
+                    (app.additionalDeadlines && app.additionalDeadlines.some(d => d.date === dateStr))
+                  );
+                  weekDays.push({ day, date: dateStr, applications: dayApps });
+                  day++;
+                }
+              }
+              calendar.push(weekDays);
+              if (day > daysInMonth) break;
+            }
+
+            return calendar;
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
+              <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="mb-8 slide-in">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+                    <div>
+                      <h1 className="text-5xl font-bold text-gray-900 mb-2 tracking-tight">
+                        Your Applications
+                      </h1>
+                      <p className="text-gray-600 text-lg">Manage and track all your internship applications</p>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {/* Export CSV Button */}
+                      <button
+                        onClick={exportToCSV}
+                        className="flex items-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                        title="Export to CSV"
+                      >
+                        <FileSpreadsheet size={20} />
+                        <span className="hidden sm:inline">CSV</span>
+                      </button>
+                      
+                      {/* Backup Button */}
+                      <button
+                        onClick={backupData}
+                        className="flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
+                        title="Backup Data"
+                      >
+                        <Download size={20} />
+                        <span className="hidden sm:inline">Backup</span>
+                      </button>
+                      
+                      {/* Import Button */}
+                      <label className="flex items-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-xl font-semibold hover:bg-orange-700 transition-all shadow-lg hover:shadow-xl cursor-pointer" title="Import Data">
+                        <Upload size={20} />
+                        <span className="hidden sm:inline">Import</span>
+                        <input
+                          type="file"
+                          accept=".json"
+                          onChange={importData}
+                          className="hidden"
+                        />
+                      </label>
+                      
+                      {/* Add Position Button */}
+                      <button
+                        onClick={() => openModal()}
+                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        <Plus size={20} />
+                        Add Position
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* View Toggle and Controls */}
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex gap-2 bg-white rounded-xl p-1.5 shadow-md">
+                      <button
+                        onClick={() => setView('list')}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                          view === 'list'
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <List size={18} />
+                        <span className="hidden sm:inline">List</span>
+                      </button>
+                      <button
+                        onClick={() => setView('compact')}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                          view === 'compact'
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Table2 size={18} />
+                        <span className="hidden sm:inline">Compact</span>
+                      </button>
+                      <button
+                        onClick={() => setView('calendar')}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                          view === 'calendar'
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Calendar size={18} />
+                        <span className="hidden sm:inline">Calendar</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium shadow-md transition-all ${
+                          showFilters || hasActiveFilters()
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Filter size={18} />
+                        Filters
+                        {hasActiveFilters() && (
+                          <span className="bg-white text-indigo-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                            {filters.status.length + filters.cycle.length + filters.category.length + (filters.stipend !== null ? 1 : 0)}
+                          </span>
+                        )}
+                      </button>
+
+                      <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-2.5 shadow-md">
+                        <span className="text-sm font-medium text-gray-700">Status Breakdown</span>
+                        <div
+                          className={`toggle-switch ${!showStatusBreakdown ? 'off' : ''}`}
+                          onClick={() => setShowStatusBreakdown(!showStatusBreakdown)}
+                        >
+                          <div className="toggle-slider" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filters Panel */}
+                {showFilters && (
+                  <div className="mb-6 bg-white rounded-2xl shadow-xl p-6 slide-in">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900">Filter Applications</h3>
+                      {hasActiveFilters() && (
+                        <button
+                          onClick={clearFilters}
+                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      {/* Status Filter */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Status</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {statusOptions.map(status => (
+                            <button
+                              key={status.value}
+                              onClick={() => toggleFilter('status', status.value)}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all filter-badge ${
+                                filters.status.includes(status.value)
+                                  ? 'text-white shadow-md'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                              style={{
+                                backgroundColor: filters.status.includes(status.value) ? status.color : undefined
+                              }}
+                            >
+                              {status.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cycle Filter */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Cycle</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {cycleOptions.map(cycle => (
+                            <button
+                              key={cycle.value}
+                              onClick={() => toggleFilter('cycle', cycle.value)}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all filter-badge ${
+                                filters.cycle.includes(cycle.value)
+                                  ? 'bg-indigo-600 text-white shadow-md'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {cycle.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Category Filter */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Category</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {availableCategories.map(category => (
+                            <button
+                              key={category}
+                              onClick={() => toggleFilter('category', category)}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all filter-badge ${
+                                filters.category.includes(category)
+                                  ? 'bg-indigo-600 text-white shadow-md'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {category}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Stipend Filter */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Stipend</h4>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => toggleFilter('stipend', true)}
+                            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all filter-badge ${
+                              filters.stipend === true
+                                ? 'bg-green-600 text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => toggleFilter('stipend', false)}
+                            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all filter-badge ${
+                              filters.stipend === false
+                                ? 'bg-red-600 text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status Breakdown - Pie Chart */}
+                {showStatusBreakdown && (
+                  <div className="mb-8 slide-in">
+                    <div className="bg-white rounded-2xl shadow-xl p-6">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Status Breakdown</h2>
+                      <p className="text-gray-600 text-sm mb-6">Current application status distribution</p>
+                      
+                      <div className="flex flex-col md:flex-row items-center gap-8">
+                        {/* Pie Chart */}
+                        <div className="flex-shrink-0">
+                          <svg width="280" height="280" viewBox="0 0 280 280" className="transform -rotate-90">
+                            {(() => {
+                              // Filter out Step 2 and Final Step from visualization
+                              const visualStatuses = statusOptions.filter(
+                                s => s.value !== 'interview_step2' && s.value !== 'interview_final'
+                              );
+                              
+                              const total = applications.length || 1;
+                              let currentAngle = 0;
+                              const radius = 100;
+                              const centerX = 140;
+                              const centerY = 140;
+                              
+                              return visualStatuses.map(status => {
+                                const count = statusBreakdown[status.value] || 0;
+                                const percentage = count / total;
+                                const angle = percentage * 360;
+                                
+                                if (count === 0) return null;
+                                
+                                const startAngle = currentAngle;
+                                const endAngle = currentAngle + angle;
+                                
+                                const startRad = (startAngle * Math.PI) / 180;
+                                const endRad = (endAngle * Math.PI) / 180;
+                                
+                                const x1 = centerX + radius * Math.cos(startRad);
+                                const y1 = centerY + radius * Math.sin(startRad);
+                                const x2 = centerX + radius * Math.cos(endRad);
+                                const y2 = centerY + radius * Math.sin(endRad);
+                                
+                                const largeArcFlag = angle > 180 ? 1 : 0;
+                                
+                                const pathData = [
+                                  `M ${centerX} ${centerY}`,
+                                  `L ${x1} ${y1}`,
+                                  `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                                  'Z'
+                                ].join(' ');
+                                
+                                currentAngle = endAngle;
+                                
+                                return (
+                                  <path
+                                    key={status.value}
+                                    d={pathData}
+                                    fill={status.color}
+                                    stroke="white"
+                                    strokeWidth="2"
+                                    className="transition-all duration-300 hover:opacity-80"
+                                  />
+                                );
+                              });
+                            })()}
+                            
+                            {/* Center circle */}
+                            <circle
+                              cx="140"
+                              cy="140"
+                              r="60"
+                              fill="white"
+                              className="transform rotate-90"
+                            />
+                            <text
+                              x="140"
+                              y="135"
+                              textAnchor="middle"
+                              className="transform rotate-90"
+                              style={{ fontSize: '32px', fontWeight: 'bold', fill: '#111827' }}
+                            >
+                              {applications.length}
+                            </text>
+                            <text
+                              x="140"
+                              y="155"
+                              textAnchor="middle"
+                              className="transform rotate-90"
+                              style={{ fontSize: '14px', fill: '#6B7280' }}
+                            >
+                              Total
+                            </text>
+                          </svg>
+                        </div>
+
+                        {/* Legend */}
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {statusOptions
+                            .filter(s => s.value !== 'interview_step2' && s.value !== 'interview_final')
+                            .map(status => {
+                              const count = statusBreakdown[status.value] || 0;
+                              const total = applications.length || 1;
+                              const percentage = ((count / total) * 100).toFixed(0);
+                              
+                              return (
+                                <div key={status.value} className="flex items-center gap-3">
+                                  <div
+                                    className="w-4 h-4 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: status.color }}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-gray-700 truncate">
+                                      {status.label}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {count} ({percentage}%)
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 pt-6 border-t border-gray-200 grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-blue-100 rounded-xl">
+                            <Briefcase className="text-blue-600" size={24} />
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-600">Total Apps</div>
+                            <div className="text-2xl font-bold text-gray-900">{applications.length}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-purple-100 rounded-xl">
+                            <Clock className="text-purple-600" size={24} />
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-600">Apps in Interview</div>
+                            <div className="text-2xl font-bold text-gray-900">
+                              {(statusBreakdown.invited || 0) + (statusBreakdown.interview_step2 || 0) + (statusBreakdown.interview_final || 0)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Search Bar */}
+                {(view === 'list' || view === 'compact') && (
+                  <div className="mb-6 slide-in">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type="text"
+                        placeholder="Search by company, role, or category..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border-2 border-gray-100 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none transition-all shadow-md"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* List View */}
+                {view === 'list' && (
+                  <div className="space-y-4">
+                    {filteredApplications.map((app, index) => (
+                      <div
+                        key={app.id}
+                        className="bg-white rounded-2xl shadow-lg p-6 card-hover"
+                        style={{ animationDelay: `${index * 0.1}s` }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-start gap-4 mb-3">
+                              <div className="flex-1">
+                                <h3
+                                  className={`text-2xl font-bold mb-1 ${
+                                    isDeadlineNear(app.deadline) ? 'deadline-near' : 'text-gray-900'
+                                  }`}
+                                >
+                                  {app.company}
+                                </h3>
+                                <p className="text-gray-600 text-lg">{app.role}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                {app.link && (
+                                  <a
+                                    href={app.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Open position link"
+                                  >
+                                    <ExternalLink size={18} className="text-blue-600" />
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => openModal(app)}
+                                  className="p-2 hover:bg-indigo-50 rounded-lg transition-colors"
+                                >
+                                  <Edit2 size={18} className="text-indigo-600" />
+                                </button>
+                                <button
+                                  onClick={() => deleteApplication(app.id)}
+                                  className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={18} className="text-red-600" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                              <div className="flex items-center gap-2">
+                                <Tag size={16} className="text-gray-400" />
+                                <span className="text-sm">
+                                  <span className="font-medium text-gray-700">Category:</span>{' '}
+                                  <span className="text-gray-600">{app.category || 'N/A'}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MapPin size={16} className="text-gray-400" />
+                                <span className="text-sm">
+                                  <span className="font-medium text-gray-700">Location:</span>{' '}
+                                  <span className="text-gray-600">{app.location || 'N/A'}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock size={16} className="text-gray-400" />
+                                <span className="text-sm">
+                                  <span className="font-medium text-gray-700">Duration:</span>{' '}
+                                  <span className="text-gray-600">{app.duration || 'N/A'}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Briefcase size={16} className="text-gray-400" />
+                                <span className="text-sm">
+                                  <span className="font-medium text-gray-700">Cycle:</span>{' '}
+                                  <span
+                                    className="px-2 py-0.5 rounded-md text-xs font-medium capitalize"
+                                    style={{
+                                      backgroundColor: `${cycleOptions.find(c => c.value === app.cycle)?.color || '#E5E7EB'}50`
+                                    }}
+                                  >
+                                    {app.cycle || 'N/A'}
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Education & Stipend Row */}
+                            <div className="flex flex-wrap gap-4 mb-4">
+                              {app.educationRequirement && (
+                                <div className="flex items-center gap-2">
+                                  <GraduationCap size={16} className="text-gray-400" />
+                                  <span className="text-sm">
+                                    <span className="font-medium text-gray-700">Education:</span>{' '}
+                                    <span className="text-gray-600">{app.educationRequirement}</span>
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <DollarSign size={16} className="text-gray-400" />
+                                <span className="text-sm">
+                                  <span className="font-medium text-gray-700">Stipend:</span>{' '}
+                                  <span className={`font-semibold ${app.stipend ? 'text-green-600' : 'text-red-600'}`}>
+                                    {app.stipend ? (app.stipendAmount || 'Yes') : 'No'}
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Deadlines */}
+                            <div className="flex flex-wrap gap-4 mb-4">
+                              {app.deadline && (
+                                <div className="flex items-center gap-2">
+                                  <AlertCircle size={16} className={isDeadlineNear(app.deadline) ? 'text-red-500' : 'text-gray-400'} />
+                                  <span className="text-sm">
+                                    <span className="font-medium text-gray-700">Application Deadline:</span>{' '}
+                                    <span className={isDeadlineNear(app.deadline) ? 'font-bold text-red-600' : 'text-gray-600'}>
+                                      {new Date(app.deadline).toLocaleDateString('en-US', { 
+                                        month: 'long', 
+                                        day: 'numeric', 
+                                        year: 'numeric' 
+                                      })}
+                                    </span>
+                                  </span>
+                                </div>
+                              )}
+                              {app.appliedOn && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar size={16} className="text-gray-400" />
+                                  <span className="text-sm">
+                                    <span className="font-medium text-gray-700">Applied:</span>{' '}
+                                    <span className="text-gray-600">
+                                      {new Date(app.appliedOn).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric', 
+                                        year: 'numeric' 
+                                      })}
+                                    </span>
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Additional Deadlines */}
+                            {app.additionalDeadlines && app.additionalDeadlines.length > 0 && (
+                              <div className="mb-4">
+                                <div className="text-sm font-medium text-gray-700 mb-2">Additional Deadlines:</div>
+                                <div className="flex flex-wrap gap-2">
+                                  {app.additionalDeadlines.map(deadline => (
+                                    <div
+                                      key={deadline.id}
+                                      className="px-3 py-1.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-medium"
+                                    >
+                                      {deadline.name}: {new Date(deadline.date).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                      })}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-3 mb-4">
+                              <span
+                                className="px-4 py-1.5 rounded-full text-sm font-semibold text-white status-pill"
+                                style={{ backgroundColor: statusOptions.find(s => s.value === app.status)?.color }}
+                              >
+                                {statusOptions.find(s => s.value === app.status)?.label}
+                              </span>
+                              
+                              <div className="flex items-center gap-2 text-xs text-gray-600">
+                                <span className="font-medium">Materials:</span>
+                                {app.materials.cv && (
+                                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md">CV ✓</span>
+                                )}
+                                {app.materials.coverLetter && (
+                                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md">Cover Letter ✓</span>
+                                )}
+                                {app.materials.other && (
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md">{app.materials.other}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {app.notes && (
+                              <details className="mt-4">
+                                <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                                  <FileText size={16} />
+                                  View Notes
+                                </summary>
+                                <div className="mt-2 p-4 bg-indigo-50 rounded-lg text-sm text-gray-700">
+                                  {app.notes}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {filteredApplications.length === 0 && (
+                      <div className="text-center py-16 bg-white rounded-2xl shadow-lg">
+                        <Briefcase size={64} className="mx-auto text-gray-300 mb-4" />
+                        <p className="text-xl text-gray-500">No applications found</p>
+                        <p className="text-gray-400 mt-2">
+                          {hasActiveFilters() 
+                            ? 'Try adjusting your filters or search'
+                            : 'Add a new position to get started'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Compact Table View */}
+                {view === 'compact' && (
+                  <div className="bg-white rounded-2xl shadow-xl overflow-hidden slide-in">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b-2 border-gray-200">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Company</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Position</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Deadline</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Stipend</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Location</th>
+                            <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredApplications.map((app) => {
+                            const status = statusOptions.find(s => s.value === app.status);
+                            return (
+                              <tr key={app.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-6 py-4">
+                                  <div className={`font-semibold ${isDeadlineNear(app.deadline) ? 'deadline-near' : 'text-gray-900'}`}>
+                                    {app.company}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-gray-700">{app.role}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {app.deadline ? (
+                                    <div className={`text-sm ${isDeadlineNear(app.deadline) ? 'font-bold text-red-600' : 'text-gray-600'}`}>
+                                      {new Date(app.deadline).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400 text-sm">-</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span
+                                    className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                                    style={{ backgroundColor: status?.color }}
+                                  >
+                                    {status?.label}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`text-sm font-semibold ${app.stipend ? 'text-green-600' : 'text-red-600'}`}>
+                                    {app.stipend ? (app.stipendAmount || 'Yes') : 'No'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm text-gray-600 max-w-[200px] truncate">
+                                    {app.location || '-'}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center justify-center gap-2">
+                                    {app.link && (
+                                      <a
+                                        href={app.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Open position link"
+                                      >
+                                        <ExternalLink size={16} className="text-blue-600" />
+                                      </a>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setViewingApp(app);
+                                        setIsViewModalOpen(true);
+                                      }}
+                                      className="p-2 hover:bg-indigo-50 rounded-lg transition-colors"
+                                      title="View details"
+                                    >
+                                      <Eye size={16} className="text-indigo-600" />
+                                    </button>
+                                    <button
+                                      onClick={() => openModal(app)}
+                                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                      title="Edit"
+                                    >
+                                      <Edit2 size={16} className="text-gray-600" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {filteredApplications.length === 0 && (
+                      <div className="text-center py-16">
+                        <Briefcase size={64} className="mx-auto text-gray-300 mb-4" />
+                        <p className="text-xl text-gray-500">No applications found</p>
+                        <p className="text-gray-400 mt-2">
+                          {hasActiveFilters() 
+                            ? 'Try adjusting your filters or search'
+                            : 'Add a new position to get started'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Calendar View */}
+                {view === 'calendar' && (
+                  <div className="bg-white rounded-2xl shadow-xl p-6 slide-in">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        {selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                      </h2>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1))}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+                        <button
+                          onClick={() => setSelectedMonth(new Date())}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium"
+                        >
+                          Today
+                        </button>
+                        <button
+                          onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1))}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mb-4 flex gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-purple-200 rounded"></div>
+                        <span className="text-gray-600">Application Deadline</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-blue-200 rounded"></div>
+                        <span className="text-gray-600">Applied Date</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-amber-200 rounded"></div>
+                        <span className="text-gray-600">Other Event</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day} className="text-center font-semibold text-gray-600 py-2">
+                          {day}
+                        </div>
+                      ))}
+                      
+                      {generateCalendar().map((week, weekIndex) => (
+                        <React.Fragment key={weekIndex}>
+                          {week.map((dayData, dayIndex) => (
+                            <div
+                              key={dayIndex}
+                              className={`min-h-[120px] p-2 rounded-lg border-2 ${
+                                dayData
+                                  ? 'border-gray-100 hover:border-indigo-200 bg-white'
+                                  : 'border-transparent bg-gray-50'
+                              } transition-all`}
+                            >
+                              {dayData && (
+                                <>
+                                  <div className="font-semibold text-gray-700 mb-2">{dayData.day}</div>
+                                  <div className="space-y-1">
+                                    {dayData.applications.map(app => {
+                                      const isMainDeadline = app.deadline === dayData.date;
+                                      const isAppliedDate = app.appliedOn === dayData.date;
+                                      const additionalEvent = app.additionalDeadlines?.find(d => d.date === dayData.date);
+                                      
+                                      const bgColor = isMainDeadline 
+                                        ? `${statusOptions.find(s => s.value === app.status)?.color}30`
+                                        : isAppliedDate 
+                                        ? '#DBEAFE'
+                                        : '#FEF3C7';
+                                      
+                                      return (
+                                        <div
+                                          key={app.id}
+                                          className="text-xs p-1.5 rounded truncate cursor-pointer"
+                                          style={{ backgroundColor: bgColor }}
+                                          title={`${app.company} - ${app.role}${additionalEvent ? ` (${additionalEvent.name})` : ''}`}
+                                          onClick={() => openModal(app)}
+                                        >
+                                          {app.company}
+                                          {additionalEvent && <div className="text-[10px] opacity-75">{additionalEvent.name}</div>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal for Add/Edit */}
+              {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
+                      <h2 className="text-3xl font-bold text-gray-900">
+                        {editingApp ? 'Edit Position' : 'Add New Position'}
+                      </h2>
+                      <button
+                        onClick={() => setIsModalOpen(false)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                      {/* Basic Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Company Name *
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.company}
+                            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                            placeholder="e.g., Google, Bloomberg"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Position *
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.role}
+                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                            placeholder="e.g., Software Engineer Intern"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Category
+                          </label>
+                          <div className="flex gap-2">
+                            <select
+                              value={formData.category}
+                              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                            >
+                              <option value="">Select category</option>
+                              {availableCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="mt-2 flex gap-2">
+                            <input
+                              type="text"
+                              value={customCategory}
+                              onChange={(e) => setCustomCategory(e.target.value)}
+                              placeholder="Add custom category..."
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                            <button
+                              onClick={addCustomCategory}
+                              className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Status
+                          </label>
+                          <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                          >
+                            {statusOptions.map(status => (
+                              <option key={status.value} value={status.value}>{status.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Cycle
+                          </label>
+                          <select
+                            value={formData.cycle}
+                            onChange={(e) => setFormData({ ...formData, cycle: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                          >
+                            <option value="">Select cycle</option>
+                            {cycleOptions.map(cycle => (
+                              <option key={cycle.value} value={cycle.value}>{cycle.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Duration
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.duration}
+                            onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                            placeholder="e.g., 3 months, 12 weeks"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Location
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.location}
+                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                            placeholder="e.g., Remote, New York, Hybrid"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Position Link (optional)
+                          </label>
+                          <input
+                            type="url"
+                            value={formData.link}
+                            onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                            placeholder="https://..."
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Application Deadline
+                          </label>
+                          <input
+                            type="date"
+                            value={formData.deadline}
+                            onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Applied On (optional)
+                          </label>
+                          <input
+                            type="date"
+                            value={formData.appliedOn}
+                            onChange={(e) => setFormData({ ...formData, appliedOn: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Education Requirement
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.educationRequirement}
+                            onChange={(e) => setFormData({ ...formData, educationRequirement: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                            placeholder="e.g., Bachelor's in CS"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Stipend
+                          </label>
+                          <div className="flex gap-4 mb-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                checked={formData.stipend === true}
+                                onChange={() => setFormData({ ...formData, stipend: true })}
+                                className="w-4 h-4"
+                              />
+                              <span className="text-green-600 font-medium">Yes</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                checked={formData.stipend === false}
+                                onChange={() => setFormData({ ...formData, stipend: false })}
+                                className="w-4 h-4"
+                              />
+                              <span className="text-red-600 font-medium">No</span>
+                            </label>
+                          </div>
+                          {formData.stipend && (
+                            <input
+                              type="text"
+                              value={formData.stipendAmount}
+                              onChange={(e) => setFormData({ ...formData, stipendAmount: e.target.value })}
+                              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-400 outline-none"
+                              placeholder="e.g., €1,200/month"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Additional Deadlines */}
+                      <div className="border-2 border-gray-200 rounded-xl p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Deadlines</h3>
+                        <div className="space-y-3 mb-4">
+                          {formData.additionalDeadlines.map(deadline => (
+                            <div key={deadline.id} className="flex items-center gap-3 bg-amber-50 p-3 rounded-lg">
+                              <span className="flex-1 text-sm font-medium">{deadline.name}</span>
+                              <span className="text-sm text-gray-600">{deadline.date}</span>
+                              <button
+                                onClick={() => removeDeadline(deadline.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-3">
+                          <input
+                            type="text"
+                            value={newDeadline.name}
+                            onChange={(e) => setNewDeadline({ ...newDeadline, name: e.target.value })}
+                            placeholder="Event name (e.g., Interview, Test)"
+                            className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-400 outline-none"
+                          />
+                          <input
+                            type="date"
+                            value={newDeadline.date}
+                            onChange={(e) => setNewDeadline({ ...newDeadline, date: e.target.value })}
+                            className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-400 outline-none"
+                          />
+                          <button
+                            onClick={addDeadline}
+                            className="px-4 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 font-medium"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Materials Required */}
+                      <div className="border-2 border-gray-200 rounded-xl p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Required Materials</h3>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.materials.cv}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  materials: { ...formData.materials, cv: e.target.checked }
+                                })}
+                                className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="font-medium text-gray-700">CV/Resume</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.materials.coverLetter}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  materials: { ...formData.materials, coverLetter: e.target.checked }
+                                })}
+                                className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="font-medium text-gray-700">Cover Letter</span>
+                            </label>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Other Materials (specify)
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.materials.other}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                materials: { ...formData.materials, other: e.target.value }
+                              })}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
+                              placeholder="e.g., Portfolio, Transcript, References"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Notes
+                        </label>
+                        <textarea
+                          value={formData.notes}
+                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          rows={4}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all resize-none"
+                          placeholder="Add any important notes about this position..."
+                        />
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-4 pt-4">
+                        <button
+                          onClick={() => setIsModalOpen(false)}
+                          className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={saveApplication}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                        >
+                          <Save size={20} />
+                          {editingApp ? 'Update Position' : 'Add Position'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* View Details Modal */}
+              {isViewModalOpen && viewingApp && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
+                      <h2 className="text-3xl font-bold text-gray-900">
+                        {viewingApp.company}
+                      </h2>
+                      <button
+                        onClick={() => {
+                          setIsViewModalOpen(false);
+                          setViewingApp(null);
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                      {/* Position Title */}
+                      <div>
+                        <h3 className="text-2xl text-gray-700 mb-4">{viewingApp.role}</h3>
+                        
+                        <div className="flex items-center gap-3 mb-6">
+                          <span
+                            className="px-4 py-1.5 rounded-full text-sm font-semibold text-white"
+                            style={{ backgroundColor: statusOptions.find(s => s.value === viewingApp.status)?.color }}
+                          >
+                            {statusOptions.find(s => s.value === viewingApp.status)?.label}
+                          </span>
+                          
+                          {viewingApp.link && (
+                            <a
+                              href={viewingApp.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              <ExternalLink size={16} />
+                              <span className="text-sm font-medium">View Position</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Details Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {viewingApp.category && (
+                          <div className="flex items-start gap-3">
+                            <Tag className="text-gray-400 mt-1" size={20} />
+                            <div>
+                              <div className="text-sm font-semibold text-gray-700">Category</div>
+                              <div className="text-gray-900">{viewingApp.category}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {viewingApp.location && (
+                          <div className="flex items-start gap-3">
+                            <MapPin className="text-gray-400 mt-1" size={20} />
+                            <div>
+                              <div className="text-sm font-semibold text-gray-700">Location</div>
+                              <div className="text-gray-900">{viewingApp.location}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {viewingApp.duration && (
+                          <div className="flex items-start gap-3">
+                            <Clock className="text-gray-400 mt-1" size={20} />
+                            <div>
+                              <div className="text-sm font-semibold text-gray-700">Duration</div>
+                              <div className="text-gray-900">{viewingApp.duration}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {viewingApp.cycle && (
+                          <div className="flex items-start gap-3">
+                            <Briefcase className="text-gray-400 mt-1" size={20} />
+                            <div>
+                              <div className="text-sm font-semibold text-gray-700">Cycle</div>
+                              <div className="text-gray-900 capitalize">{viewingApp.cycle}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {viewingApp.educationRequirement && (
+                          <div className="flex items-start gap-3">
+                            <GraduationCap className="text-gray-400 mt-1" size={20} />
+                            <div>
+                              <div className="text-sm font-semibold text-gray-700">Education</div>
+                              <div className="text-gray-900">{viewingApp.educationRequirement}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-start gap-3">
+                          <DollarSign className="text-gray-400 mt-1" size={20} />
+                          <div>
+                            <div className="text-sm font-semibold text-gray-700">Stipend</div>
+                            <div className={`font-semibold ${viewingApp.stipend ? 'text-green-600' : 'text-red-600'}`}>
+                              {viewingApp.stipend ? (viewingApp.stipendAmount || 'Yes') : 'No'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Deadlines */}
+                      <div className="border-t border-gray-200 pt-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Deadlines</h4>
+                        <div className="space-y-3">
+                          {viewingApp.deadline && (
+                            <div className="flex items-center gap-3">
+                              <AlertCircle size={18} className={isDeadlineNear(viewingApp.deadline) ? 'text-red-500' : 'text-gray-400'} />
+                              <div>
+                                <div className="text-sm text-gray-600">Application Deadline</div>
+                                <div className={`font-medium ${isDeadlineNear(viewingApp.deadline) ? 'text-red-600' : 'text-gray-900'}`}>
+                                  {new Date(viewingApp.deadline).toLocaleDateString('en-US', { 
+                                    month: 'long', 
+                                    day: 'numeric', 
+                                    year: 'numeric' 
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {viewingApp.appliedOn && (
+                            <div className="flex items-center gap-3">
+                              <Calendar size={18} className="text-gray-400" />
+                              <div>
+                                <div className="text-sm text-gray-600">Applied On</div>
+                                <div className="font-medium text-gray-900">
+                                  {new Date(viewingApp.appliedOn).toLocaleDateString('en-US', { 
+                                    month: 'long', 
+                                    day: 'numeric', 
+                                    year: 'numeric' 
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {viewingApp.additionalDeadlines && viewingApp.additionalDeadlines.length > 0 && (
+                            <div className="mt-4">
+                              <div className="text-sm font-medium text-gray-700 mb-2">Additional Deadlines</div>
+                              <div className="flex flex-wrap gap-2">
+                                {viewingApp.additionalDeadlines.map(deadline => (
+                                  <div
+                                    key={deadline.id}
+                                    className="px-3 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-medium"
+                                  >
+                                    {deadline.name}: {new Date(deadline.date).toLocaleDateString('en-US', { 
+                                      month: 'short', 
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Materials */}
+                      <div className="border-t border-gray-200 pt-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Required Materials</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {viewingApp.materials.cv && (
+                            <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md text-sm font-medium">CV ✓</span>
+                          )}
+                          {viewingApp.materials.coverLetter && (
+                            <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md text-sm font-medium">Cover Letter ✓</span>
+                          )}
+                          {viewingApp.materials.other && (
+                            <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md text-sm font-medium">{viewingApp.materials.other}</span>
+                          )}
+                          {!viewingApp.materials.cv && !viewingApp.materials.coverLetter && !viewingApp.materials.other && (
+                            <span className="text-gray-500 text-sm">No materials specified</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      {viewingApp.notes && (
+                        <div className="border-t border-gray-200 pt-6">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Notes</h4>
+                          <div className="p-4 bg-indigo-50 rounded-lg text-gray-700">
+                            {viewingApp.notes}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-4 pt-4 border-t border-gray-200">
+                        <button
+                          onClick={() => {
+                            setIsViewModalOpen(false);
+                            setViewingApp(null);
+                          }}
+                          className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+                        >
+                          Close
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsViewModalOpen(false);
+                            openModal(viewingApp);
+                          }}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                        >
+                          <Edit2 size={20} />
+                          Edit Position
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnhancedInternshipTracker />);
+    </script>
+</body>
+</html>
