@@ -1,4 +1,4 @@
-# Giulio's Application Tracker
+# Get-a-Job | Application Tracker
 
 A powerful, feature-rich web application for tracking internship applications. Built with React, runs entirely in your browser - no backend required.
 
